@@ -12,24 +12,26 @@ function saveTasks() {
 
 function renderTasks() {
   taskList.innerHTML = "";
-  let filteredTasks = tasks.filter((task) => {
-    if (currentFilter === "all") return true;
-    if (currentFilter === "completed") return task.completed;
-    if (currentFilter === "pending") return !task.completed;
-  });
 
-  filteredTasks.forEach((task, index) => {
+  let filteredTasks = tasks
+    .map((task, index) => ({ ...task, originalIndex: index })) // نضيف فهرس حقيقي
+    .filter((task) => {
+      if (currentFilter === "all") return true;
+      if (currentFilter === "completed") return task.completed;
+      if (currentFilter === "pending") return !task.completed;
+    });
+
+  filteredTasks.forEach((task) => {
     const li = document.createElement("li");
     if (task.completed) li.classList.add("completed");
 
     li.innerHTML = `
       <div class="task-info">
-        <input type="checkbox" ${task.completed ? "checked" : ""} onchange="toggleTask(${index})">
-        <span class="text">${task.text}</span>
+        <input type="checkbox" ${task.completed ? "checked" : ""} onchange="toggleTask(${task.originalIndex})">
+        <span class="text" ondblclick="editInline(${task.originalIndex}, this)">${task.text}</span>
       </div>
       <div class="actions">
-        <span class="edit" onclick="editTask(${index})">✏️</span>
-        <span class="delete" onclick="deleteTask(${index})">🗑️</span>
+        <span class="delete" onclick="deleteTask(${task.originalIndex})">🗑️</span>
       </div>
     `;
 
@@ -40,7 +42,6 @@ function renderTasks() {
 function addTask() {
   const text = taskInput.value.trim();
   if (text === "") return;
-
   tasks.push({ text, completed: false });
   saveTasks();
   taskInput.value = "";
@@ -59,13 +60,31 @@ function deleteTask(index) {
   renderTasks();
 }
 
-function editTask(index) {
-  const newText = prompt("Edit task:", tasks[index].text);
-  if (newText !== null && newText.trim() !== "") {
-    tasks[index].text = newText.trim();
+function editInline(index, spanElement) {
+  const oldText = tasks[index].text;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = oldText;
+  input.className = "edit-input";
+  spanElement.replaceWith(input);
+  input.focus();
+
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") saveEdit(index, input);
+  });
+
+  input.addEventListener("blur", () => {
+    saveEdit(index, input);
+  });
+}
+
+function saveEdit(index, input) {
+  const newText = input.value.trim();
+  if (newText !== "") {
+    tasks[index].text = newText;
     saveTasks();
-    renderTasks();
   }
+  renderTasks();
 }
 
 filterButtons.forEach((btn) => {
